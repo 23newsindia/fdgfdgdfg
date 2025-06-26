@@ -47,6 +47,11 @@ class FeatureManager {
             return;
         }
 
+        // Always allow for logged-in users (they need query strings for editing/previewing)
+        if (is_user_logged_in()) {
+            return;
+        }
+
         $request_uri = $_SERVER['REQUEST_URI'];
         $path = parse_url($request_uri, PHP_URL_PATH);
         $query = parse_url($request_uri, PHP_URL_QUERY);
@@ -55,8 +60,79 @@ class FeatureManager {
             return;
         }
 
+        // Parse query parameters
+        parse_str($query, $query_params);
+
+        // Always allow WordPress core functionality query parameters
+        $wordpress_core_params = array(
+            'preview',           // Post preview
+            'p',                // Post ID
+            'page_id',          // Page ID
+            'post_type',        // Post type
+            'preview_id',       // Preview ID
+            'preview_nonce',    // Preview nonce
+            'tb',               // Trackback
+            'replytocom',       // Comment reply
+            'unapproved',       // Unapproved comment
+            'moderation-hash',  // Comment moderation
+            's',                // Search query
+            'paged',            // Pagination
+            'cat',              // Category
+            'tag',              // Tag
+            'author',           // Author
+            'year',             // Year archive
+            'monthnum',         // Month archive
+            'day',              // Day archive
+            'feed',             // Feed type
+            'withcomments',     // Comments feed
+            'withoutcomments',  // Posts without comments
+            'attachment_id',    // Attachment ID
+            'subpage',          // Subpage
+            'static',           // Static page
+            'customize_theme',  // Theme customizer
+            'customize_changeset_uuid', // Customizer changeset
+            'customize_autosaved', // Customizer autosave
+            'wp_customize',     // Customizer
+            'doing_wp_cron',    // WP Cron
+            'rest_route',       // REST API route
+            'wc-ajax',          // WooCommerce AJAX
+            'add-to-cart',      // WooCommerce add to cart
+            'remove_item',      // WooCommerce remove item
+            'undo_item',        // WooCommerce undo item
+            'update_cart',      // WooCommerce update cart
+            'proceed',          // WooCommerce proceed
+            'elementor-preview', // Elementor preview
+            'ver',              // Version parameter for assets
+            'v',                // Version parameter (short)
+            '_wpnonce',         // WordPress nonce
+            'action',           // WordPress action
+            'redirect_to',      // Redirect parameter
+            'loggedout',        // Logout confirmation
+            'registration',     // Registration
+            'checkemail',       // Check email
+            'key',              // Reset password key
+            'login',            // Login parameter
+            'interim-login',    // Interim login
+            'customize_messenger_channel', // Customizer messenger
+            'fl_builder',       // Beaver Builder
+            'et_fb',            // Divi Builder
+            'ct_builder',       // Oxygen Builder
+            'tve',              // Thrive Architect
+            'vcv-action',       // Visual Composer
+            'vc_action',        // Visual Composer
+            'brizy-edit',       // Brizy Builder
+            'brizy-edit-iframe' // Brizy Builder iframe
+        );
+
+        // Check if any WordPress core parameters are present
+        foreach ($wordpress_core_params as $core_param) {
+            if (isset($query_params[$core_param])) {
+                return; // Allow the request with query strings
+            }
+        }
+
         // Always allow WooCommerce AJAX requests
-        if (isset($_GET['wc-ajax'])) {
+        if (isset($query_params['wc-ajax'])) {
             return;
         }
 
@@ -70,7 +146,7 @@ class FeatureManager {
             if (strpos($excluded, '?') === 0) {
                 // This is a query parameter exclusion
                 $param = trim($excluded, '?=');
-                if (isset($_GET[$param])) {
+                if (isset($query_params[$param])) {
                     return;
                 }
             } else {
@@ -83,6 +159,11 @@ class FeatureManager {
                 
                 // If path matches and query matches exactly, allow it
                 if ($current_path === $excluded_path && $query === $excluded_query) {
+                    return;
+                }
+                
+                // If just path matches and no specific query required, allow it
+                if ($current_path === $excluded_path && empty($excluded_query)) {
                     return;
                 }
             }
